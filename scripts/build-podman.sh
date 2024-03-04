@@ -8,7 +8,6 @@ root_dir=$(dirname "${here}")
 dist_dir="${root_dir}/dist"
 
 app_version=$1
-app_release=$2
 container_name="intellij-idea-appimage"
 work_dir="/intellij-idea-appimage"
 
@@ -28,7 +27,7 @@ done
 podman exec "${container_name}" find "${work_dir}/scripts" -type f -name "*.sh" -exec chmod +x {} \;
 
 echo "Starting build..."
-podman exec "${container_name}" "${work_dir}/scripts/build.sh" "${app_version}" "${app_release}"
+podman exec "${container_name}" "${work_dir}/scripts/build.sh" "${app_version}"
 
 echo "Copying build artifacts..."
 podman cp "${container_name}:${work_dir}/dist" "${dist_dir}"

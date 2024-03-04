@@ -38,11 +38,6 @@ jobs:
                   echo "X_APP_VERSION=${version}" >> $GITHUB_ENV
                   echo "X_TAG_NAME=v${version}" >> $GITHUB_ENV
 
-            - name: 🔐 Is build is enabled?
-              run: |
-                  build_enabled=$(./scripts/is-build-enabled.sh | xargs)
-                  echo "X_BUILD_ENABLED=${build_enabled}" >> $GITHUB_ENV
-
             - name: ♻️ Check for existing releases
               run: |
                   requires_build=$(./scripts/requires-build.sh $X_TAG_NAME | xargs)

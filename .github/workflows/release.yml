@@ -1,0 +1,77 @@
+name: Release
+
+on:
+    schedule:
+        - cron: 0 0 * * 0,4
+
+    workflow_dispatch:
+        inputs:
+            force:
+                description: Force build & release?
+                type: boolean
+                required: true
+                default: false
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        env:
+            X_APP_VERSION: ""
+            X_TAG_NAME: ""
+            X_BUILD_ENABLED: ""
+            X_REQUIRES_BUILD: ""
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: 🚧 Prerequistes
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y podman
+
+            - name: 🔢 Get version
+              run: |
+                  version=$(./scripts/version.sh | xargs)
+                  echo "X_APP_VERSION=${version}" >> $GITHUB_ENV
+                  echo "X_TAG_NAME=v${version}" >> $GITHUB_ENV
+
+            - name: 🔐 Is build is enabled?
+              run: |
+                  build_enabled=$(./scripts/is-build-enabled.sh | xargs)
+                  echo "X_BUILD_ENABLED=${build_enabled}" >> $GITHUB_ENV
+
+            - name: ♻️ Check for existing releases
+              run: |
+                  requires_build=$(./scripts/requires-build.sh $X_TAG_NAME | xargs)
+                  echo "X_REQUIRES_BUILD=${requires_build}" >> $GITHUB_ENV
+              if: ${{ env.X_BUILD_ENABLED == 'yes' }}
+              env:
+                  X_FORCE_BUILD: ${{ inputs.force }}
+
+            - name: 🔨 Build executables
+              run: |
+                  find ./scripts -type f -name "*.sh" -exec chmod +x {} \;
+                  ./scripts/build-podman.sh $X_APP_VERSION $X_APP_RELEASE
+              if: ${{ env.X_REQUIRES_BUILD == 'yes' }}
+
+            - name: 🚀 Upload executables
+              uses: ncipollo/release-action@v1
+              if: ${{ env.X_REQUIRES_BUILD == 'yes' }}
+              with:
+                  body: "IntelliJ IDEA Community Version: `${{ env.X_APP_VERSION }}`"
+                  tag: ${{ env.X_TAG_NAME }}
+                  artifacts: "dist/*"
+                  generateReleaseNotes: false
+                  draft: false
+                  artifactErrorsFailBuild: true
+                  allowUpdates: true
+                  replacesArtifacts: true
+                  makeLatest: true
+
+    generate-badge:
+        needs: [release]
+        if: always()
+        uses: ./.github/workflows/badges.yml
